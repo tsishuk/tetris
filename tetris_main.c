@@ -5,20 +5,69 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define XMAX 20
-#define YMAX 40
+#define XMAX 15
+#define YMAX 20
+
+int CHECK = 1;
+int direction;
+int game_field[YMAX][XMAX+1];
+
+void clrscr(void);
+void print_grid(int X_MAX, int Y_MAX);
 
 struct Point{
 	int X;
 	int Y;
 };
 
-struct Tetramino{
-    struct Point figure[4];
-    Point position;
-    int height;
-    int weight;
+struct TetraminoStruct{
+    struct Point blocks[4];
+//    struct Point position;
+//    int height;
+//    int weight;
+} tetramino;
+
+
+void InitGameField()
+{
+    int i,j;
+    for (i=0;i<YMAX;i++)
+        for (j=0;j<XMAX;j++)
+            game_field[i][j] = 0;   // All fields empty,
+    
+    for (j=0;j<XMAX;j++)
+        game_field[i][j] = 1;       // but not last line
 }
+
+
+void GenerateTetramino(void)
+{
+    //int number = rand()%2;
+    int number = 1;
+    
+    if (number == 1){   // L figure
+        tetramino.blocks[0].X = 1;
+        tetramino.blocks[0].Y = 5;
+        tetramino.blocks[1].X = 2;
+        tetramino.blocks[1].Y = 5;
+        tetramino.blocks[2].X = 3;
+        tetramino.blocks[2].Y = 5;
+        tetramino.blocks[3].X = 3;
+        tetramino.blocks[3].Y = 6;
+        
+    }
+    else if (number == 0){  // Square figure
+        tetramino.blocks[0].X = 1;
+        tetramino.blocks[0].Y = 5;
+        tetramino.blocks[1].X = 1;
+        tetramino.blocks[1].Y = 6;
+        tetramino.blocks[2].X = 2;
+        tetramino.blocks[2].Y = 5;
+        tetramino.blocks[3].X = 2;
+        tetramino.blocks[3].Y = 6;
+    }
+}
+
 
 
 int mygetch( ) {
@@ -48,6 +97,47 @@ void* inputThreadFunc(void* arg){
 		}
 		usleep(10000);	
 	}
+    return NULL;
+}
+
+
+
+void PaintTetramino(void)
+{
+    int i;
+    for (i=0;i<4;i++){
+        printf("\033[%d;%dHX",tetramino.blocks[i].X,tetramino.blocks[i].Y);
+    }
+}
+
+
+
+void IncreaseTetramino(void)
+{
+    int i;
+    for (i=0;i<4;i++){
+        (tetramino.blocks[i].X)++;
+    }
+}
+
+
+
+void* thread_func(void* arg)
+{
+    int x,y;
+    int i,j;
+    int i_counter, j_counter;
+
+    while(CHECK){
+        PaintTetramino();
+        IncreaseTetramino();
+        //printf("\033[%d;%dH",fruit.X,fruit.Y);
+        //printf("in thread func()\n");
+        fflush(stdout);            // force clear console buffer
+        usleep(1000000);
+    }
+    
+    return NULL;
 }
 
 
@@ -58,11 +148,7 @@ int main()
 	pthread_t* tid;
 	pthread_t* tid2;
 	pthread_cond_t* cond;
-	direction = 3;
 	srand(time(0));
-
-	snake[0].X = 5;
-	snake[0].Y = 5;
 
 	// allocate memory to cond (conditional variable),  
     // thread id's and array of size threads 
@@ -74,26 +160,20 @@ int main()
 
 	clrscr();
 	print_grid(XMAX,YMAX);
-	fruit.X = 2+(rand()%(XMAX-1));
-	fruit.Y = 2+(rand()%(YMAX-1));
-	printf("\033[%d;%dHF",fruit.X,fruit.Y);		// Paint new fruit
-	printf("\033[%d;%dH ",snake[0].X,snake[0].Y);
-	printf("\033[%d;%dH Total Score: 10", XMAX+2, 0);
-	printf("\033[%d;%dH Press (p) key for exit", 2, YMAX+2);
-	printf("\033[%d;%dH w,a,s,d - control", 3, YMAX+2);
+    
+    GenerateTetramino();
 
 	pthread_create(tid, NULL, thread_func, NULL);
-	//pthread_create(tid2, NULL, inputThreadFunc, NULL);
+	pthread_create(tid2, NULL, inputThreadFunc, NULL);
 	
 	while(1){
-
-		if (CHECK == 0){
-			pthread_cancel(*tid);
-			pthread_cancel(*tid2);
-			printf("\033[%d;%dH ",XMAX+3,25);
-			printf("END OF GAME\n");
-			break;
-		}
+        if (CHECK == 0){
+            pthread_cancel(*tid);
+            pthread_cancel(*tid2);
+//            printf("\033[%d;%dH ",XMAX+3,25);
+            printf("END OF GAME\n");
+            break;
+        }
 	}
 
 	// Force make console symbols visible after thread kill with getchar()
