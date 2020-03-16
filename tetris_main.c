@@ -214,7 +214,7 @@ int CheckForLines(void)
 		if (filled_line){	// all line is filled
 			return_value = 1;
 			for (j=1; j<YMAX; j++)
-				game_field[i][j] == 5;
+				game_field[i][j] = 5;
 		}
 	}
 
@@ -227,13 +227,13 @@ void MoveTetramino(void)
 {
 	int ok = 1;
 	int i;
-
+	
+	// TODO: forbid move if there is game_field[i][j]==1 to the left or right
 	if (direction == left){
 		for (i=0;i<4;i++){
 			if (tetramino.blocks[i].Y == 2)
 				ok = 0;
 		}
-
 
 		if (ok){
 			prev_tetramino = tetramino;	
@@ -248,7 +248,6 @@ void MoveTetramino(void)
 			if (tetramino.blocks[i].Y == YMAX)
 				ok = 0;
 		}
-
 
 		if (ok){
 			prev_tetramino = tetramino;	
@@ -280,9 +279,11 @@ void* thread_func(void* arg)
 
     	else {						// no free space under tetramino(collision)
     		RefreshGameField();
+    		if (CheckForLines())
+    			PrintGameField();
+
     		// Check for filled lines here
     		//if ((CheckForLines() == 0)||()){
-    		CheckForLines();
     		if (1){
 	    		GenerateTetramino();
 	    		prev_tetramino = tetramino;
