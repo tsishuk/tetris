@@ -6,9 +6,9 @@
 #include <time.h>
 
 #define XMAX 15
-#define YMAX 20
+#define YMAX 19
 #define INPUT_DELAY 20000
-#define PAINT_DELAY 1000000
+#define PAINT_DELAY 200000
 
 int CHECK = 1;
 int game_field[XMAX+2][YMAX+1];
@@ -87,13 +87,13 @@ void GenerateTetramino(void)
     int number = 1;
     
     if (number == 1){   // L figure
-        tetramino.blocks[0].X = 0;
+        tetramino.blocks[0].X = 1;
         tetramino.blocks[0].Y = 10;
-        tetramino.blocks[1].X = 1;
+        tetramino.blocks[1].X = 2;
         tetramino.blocks[1].Y = 10;
-        tetramino.blocks[2].X = 2;
+        tetramino.blocks[2].X = 3;
         tetramino.blocks[2].Y = 10;
-        tetramino.blocks[3].X = 2;
+        tetramino.blocks[3].X = 3;
         tetramino.blocks[3].Y = 11;
     }
 }
@@ -114,9 +114,9 @@ int mygetch( ) {
 }
 
 
-//---------------------------------------
-//	Основная функция - обработка нажатий
-//---------------------------------------
+//---------------------------------------------
+//	Вспомогательная функция - обработка нажатий
+//---------------------------------------------
 void* inputThreadFunc(void* arg){
 	int ch;
 
@@ -127,15 +127,22 @@ void* inputThreadFunc(void* arg){
 			CHECK=0;
 			break;
 		}
+
 		if (ch == 'a'){
 			direction = left;
 			MoveTetramino();
 		}
+
+		if (ch == 'd'){
+			direction = right;
+			MoveTetramino();
+		}
+
 		usleep(INPUT_DELAY);	
 	}
     return NULL;
 }
-//---------------------------------------
+//---------------------------------------------
 
 
 
@@ -162,24 +169,56 @@ int CheckTetramino(void)
     int i;
     int ok = 1;
 
-    for (i=0;i<4;i++)
+    for (i=0;i<4;i++){
+    	// check for free space under tetramino
         if (game_field[tetramino.blocks[i].X+1][tetramino.blocks[i].Y-1] == 1){
             ok = 0;
+            // if no free space and first line - GAME OVER
             if (tetramino.blocks[i].X==1)
             	CHECK = 0;
         }
+
+        // if generate figure born on the existing block - GAME OVER
+        if (game_field[tetramino.blocks[i].X][tetramino.blocks[i].Y-1] == 1)
+        	CHECK = 0;
+
+    }
 
     return ok;
 }
 
 
 
-void IncreaseTetramino(void)
+void StepDownTetramino(void)
 {
     int i;
     for (i=0;i<4;i++){
         (tetramino.blocks[i].X)++;
     }
+}
+
+
+
+int CheckForLines(void)
+{
+	int i,j;
+	int return_value = 0;
+	int filled_line;
+
+	for (i=1; i<=XMAX; i++){
+		int filled_line = 1;
+		for (j=1; j<YMAX; j++){
+			if (game_field[i][j]==0)
+				filled_line = 0;
+		}
+		if (filled_line){	// all line is filled
+			return_value = 1;
+			for (j=1; j<YMAX; j++)
+				game_field[i][j] == 5;
+		}
+	}
+
+	return return_value;
 }
 
 
@@ -197,16 +236,27 @@ void MoveTetramino(void)
 
 
 		if (ok){
-			//prev_tetramino = tetramino;	
-			//for (i=0;i<4;i++)
-				//;//tetramino.blocks[i].Y--;
-			//PaintTetramino();
+			prev_tetramino = tetramino;	
+			for (i=0;i<4;i++)
+				tetramino.blocks[i].Y--;
+			PaintTetramino();
 		}
 	}
 
-	// else if (direction == right){
-	// 	;
-	// }
+	else if (direction == right){
+		for (i=0;i<4;i++){
+			if (tetramino.blocks[i].Y == YMAX)
+				ok = 0;
+		}
+
+
+		if (ok){
+			prev_tetramino = tetramino;	
+			for (i=0;i<4;i++)
+				tetramino.blocks[i].Y++;
+			PaintTetramino();
+		}
+	}
 
 }
 
@@ -221,26 +271,28 @@ void* thread_func(void* arg)
     int i_counter, j_counter;
 
     while(CHECK){
-    	prev_tetramino = tetramino;
 
-        if (CheckTetramino() == 1)
-            IncreaseTetramino();
-        // else {
-        // 	RefreshGameField();
-        //     GenerateTetramino();
-        //     prev_tetramino = tetramino;
-        // }
+    	if (CheckTetramino() == 1){	// there is free space under tetramino
+    		prev_tetramino = tetramino;
+    		StepDownTetramino();
+    		PaintTetramino();
+    	}
 
-        PaintTetramino();
+    	else {						// no free space under tetramino(collision)
+    		RefreshGameField();
+    		// Check for filled lines here
+    		//if ((CheckForLines() == 0)||()){
+    		CheckForLines();
+    		if (1){
+	    		GenerateTetramino();
+	    		prev_tetramino = tetramino;
+	    		PaintTetramino();
+	    	}
+    	}
 
-        if (CheckTetramino() == 0) {
-        	RefreshGameField();
-            GenerateTetramino();
-            prev_tetramino = tetramino;
-        }
 
-        fflush(stdout);            // force clear console buffer
-        usleep(PAINT_DELAY);
+    	fflush(stdout);             // force clear console buffer
+    	usleep(PAINT_DELAY);		// Sleep() until the next step
     }
     
     return NULL;
