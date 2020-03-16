@@ -9,11 +9,13 @@
 #define YMAX 20
 
 int CHECK = 1;
-int direction;
 int game_field[XMAX+2][YMAX+1];
 
 void clrscr(void);
 void print_grid(int X_MAX, int Y_MAX);
+
+enum direction_enum{left = 1, right = 2} direction;
+
 
 struct Point{
 	int X;
@@ -23,6 +25,27 @@ struct Point{
 struct TetraminoStruct{
     struct Point blocks[4];
 } tetramino, prev_tetramino;
+
+
+
+void MoveTetramino(void);
+
+
+
+void PrintGameField()
+{
+	int i,j;
+
+	printf("\033[%d;%dH",XMAX+3, 0);
+
+    for (i=0;i<=(XMAX+1);i++){
+        for (j=0;j<=YMAX;j++){
+            printf("%d",game_field[i][j]);
+        }
+        printf("  %d\n",i);
+    }
+}
+
 
 
 void InitGameField()
@@ -39,19 +62,26 @@ void InitGameField()
     for (j=0;j<=YMAX;j++)
         game_field[i][j] = 1;       // but not last line
     
-    for (i=0;i<=(XMAX+1);i++){
-        for (j=0;j<=YMAX;j++){
-            printf("%d",game_field[i][j]);
-        }
-        printf("  %d\n",i);
-    }
-    
+    PrintGameField();
 }
+
+
+
+void RefreshGameField(void)
+{
+	int i;
+	for (i=0;i<4;i++)
+		game_field[tetramino.blocks[i].X][tetramino.blocks[i].Y-1] = 1;
+
+	PrintGameField();
+}
+
 
 
 void GenerateTetramino(void)
 {
     //int number = rand()%2;
+    // TODO: random figure number in future
     int number = 1;
     
     if (number == 1){   // L figure
@@ -63,7 +93,6 @@ void GenerateTetramino(void)
         tetramino.blocks[2].Y = 10;
         tetramino.blocks[3].X = 3;
         tetramino.blocks[3].Y = 11;
-        
     }
 }
 
@@ -94,7 +123,11 @@ void* inputThreadFunc(void* arg){
 			CHECK=0;
 			break;
 		}
-		usleep(10000);	
+		if (ch == 'a'){
+			direction = left;
+			MoveTetramino();
+		}
+		usleep(20000);	
 	}
     return NULL;
 }
@@ -117,14 +150,18 @@ void PaintTetramino(void)
 }
 
 
+
 int CheckTetramino(void)
 {
     int i;
     int ok = 1;
 
     for (i=0;i<4;i++)
-        if (game_field[tetramino.blocks[i].X+1][tetramino.blocks[i].Y] == 1)
+        if (game_field[tetramino.blocks[i].X+1][tetramino.blocks[i].Y-1] == 1){
             ok = 0;
+            if (tetramino.blocks[i].X==1)
+            	CHECK = 0;
+        }
 
     return ok;
 }
@@ -137,6 +174,33 @@ void IncreaseTetramino(void)
     for (i=0;i<4;i++){
         (tetramino.blocks[i].X)++;
     }
+}
+
+
+
+void MoveTetramino(void)
+{
+	int ok = 1;
+	int i;
+
+	if (direction == left){
+		for (i=0;i<4;i++){
+			if (tetramino.blocks[i].Y==1)
+				ok = 0;
+		}
+
+		if (ok){
+			prev_tetramino = tetramino;	
+			for (i=0;i<4;i++)
+				tetramino.blocks[i].Y--;
+			PaintTetramino();
+		}
+	}
+
+	else if (direction == right){
+		;
+	}
+
 }
 
 
@@ -154,12 +218,13 @@ void* thread_func(void* arg)
         if (CheckTetramino() == 1)
             IncreaseTetramino();
         else {
+        	RefreshGameField();
             GenerateTetramino();
             prev_tetramino = tetramino;
         }
 
         fflush(stdout);            // force clear console buffer
-        usleep(1000000);
+        usleep(2000000);
     }
     
     return NULL;
