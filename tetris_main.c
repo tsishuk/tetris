@@ -7,6 +7,8 @@
 
 #define XMAX 15
 #define YMAX 20
+#define INPUT_DELAY 20000
+#define PAINT_DELAY 1000000
 
 int CHECK = 1;
 int game_field[XMAX+2][YMAX+1];
@@ -85,13 +87,13 @@ void GenerateTetramino(void)
     int number = 1;
     
     if (number == 1){   // L figure
-        tetramino.blocks[0].X = 1;
+        tetramino.blocks[0].X = 0;
         tetramino.blocks[0].Y = 10;
-        tetramino.blocks[1].X = 2;
+        tetramino.blocks[1].X = 1;
         tetramino.blocks[1].Y = 10;
-        tetramino.blocks[2].X = 3;
+        tetramino.blocks[2].X = 2;
         tetramino.blocks[2].Y = 10;
-        tetramino.blocks[3].X = 3;
+        tetramino.blocks[3].X = 2;
         tetramino.blocks[3].Y = 11;
     }
 }
@@ -112,7 +114,9 @@ int mygetch( ) {
 }
 
 
-
+//---------------------------------------
+//	Основная функция - обработка нажатий
+//---------------------------------------
 void* inputThreadFunc(void* arg){
 	int ch;
 
@@ -127,10 +131,11 @@ void* inputThreadFunc(void* arg){
 			direction = left;
 			MoveTetramino();
 		}
-		usleep(20000);	
+		usleep(INPUT_DELAY);	
 	}
     return NULL;
 }
+//---------------------------------------
 
 
 
@@ -141,6 +146,7 @@ void PaintTetramino(void)
     for (i=0; i<4; i++){
         printf("\033[%d;%dH ",prev_tetramino.blocks[i].X,prev_tetramino.blocks[i].Y);
     }
+
     printf("\033[%d;%dH                                               ", 10, (YMAX+10));
     // Paint new tetramino
     for (i=0; i<4; i++){       
@@ -185,26 +191,29 @@ void MoveTetramino(void)
 
 	if (direction == left){
 		for (i=0;i<4;i++){
-			if (tetramino.blocks[i].Y==1)
+			if (tetramino.blocks[i].Y == 2)
 				ok = 0;
 		}
 
+
 		if (ok){
-			prev_tetramino = tetramino;	
-			for (i=0;i<4;i++)
-				tetramino.blocks[i].Y--;
-			PaintTetramino();
+			//prev_tetramino = tetramino;	
+			//for (i=0;i<4;i++)
+				//;//tetramino.blocks[i].Y--;
+			//PaintTetramino();
 		}
 	}
 
-	else if (direction == right){
-		;
-	}
+	// else if (direction == right){
+	// 	;
+	// }
 
 }
 
 
-
+//-----------------------------------
+//	Основная функция - отрисовка
+//-----------------------------------
 void* thread_func(void* arg)
 {
     int x,y;
@@ -212,23 +221,31 @@ void* thread_func(void* arg)
     int i_counter, j_counter;
 
     while(CHECK){
-        PaintTetramino();
-        prev_tetramino = tetramino;
+    	prev_tetramino = tetramino;
 
         if (CheckTetramino() == 1)
             IncreaseTetramino();
-        else {
+        // else {
+        // 	RefreshGameField();
+        //     GenerateTetramino();
+        //     prev_tetramino = tetramino;
+        // }
+
+        PaintTetramino();
+
+        if (CheckTetramino() == 0) {
         	RefreshGameField();
             GenerateTetramino();
             prev_tetramino = tetramino;
         }
 
         fflush(stdout);            // force clear console buffer
-        usleep(2000000);
+        usleep(PAINT_DELAY);
     }
     
     return NULL;
 }
+//-----------------------------------
 
 
 
