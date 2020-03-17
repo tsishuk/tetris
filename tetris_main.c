@@ -71,9 +71,34 @@ void InitGameField()
 
 void RefreshGameField(void)
 {
-	int i;
-	for (i=0;i<4;i++)
-		game_field[tetramino.blocks[i].X][tetramino.blocks[i].Y-1] = 1;
+	int i,j,k;
+
+	if (CHECK == 2){	// if there is strike lines, delete it and move each other line down 1 step
+
+		for (i=1; i<=XMAX; i++){
+			if (game_field[i][1] == 5){		// find line with strike
+				for (k = i; k>1; k--)
+					for (j=1; j<YMAX; j++) 
+						game_field[k][j] = game_field[k-1][j];
+			}
+		}
+
+		for (i=1; i<=XMAX; i++){
+			printf("\033[%d;%dH",i, 2);
+			for (j=1; j<YMAX; j++) {
+				if (game_field[i][j]==0)
+					printf(" ");
+				else
+					printf("X");
+			}
+		}
+		CHECK = 1;
+	}
+
+	else {			// No strike lines
+		for (i=0;i<4;i++)
+			game_field[tetramino.blocks[i].X][tetramino.blocks[i].Y-1] = 1;
+	}
 
 	PrintGameField();
 }
@@ -228,10 +253,9 @@ void MoveTetramino(void)
 	int ok = 1;
 	int i;
 	
-	// TODO: forbid move if there is game_field[i][j]==1 to the left or right
 	if (direction == left){
 		for (i=0;i<4;i++){
-			if (tetramino.blocks[i].Y == 2)
+			if (game_field[tetramino.blocks[i].X][tetramino.blocks[i].Y-2] == 1)
 				ok = 0;
 		}
 
@@ -245,7 +269,7 @@ void MoveTetramino(void)
 
 	else if (direction == right){
 		for (i=0;i<4;i++){
-			if (tetramino.blocks[i].Y == YMAX)
+			if (game_field[tetramino.blocks[i].X][tetramino.blocks[i].Y] == 1)
 				ok = 0;
 		}
 
@@ -260,6 +284,21 @@ void MoveTetramino(void)
 }
 
 
+
+void PrintStrike(void)
+{
+	int i,j;
+	for (i=1;i<=XMAX;i++){
+		if (game_field[i][1] == 5){
+			printf("\033[%d;%dH",i, 2);
+			for (j=1; j<YMAX; j++)
+				printf("=");
+		}
+	}
+}
+
+
+
 //-----------------------------------
 //	Основная функция - отрисовка
 //-----------------------------------
@@ -271,6 +310,11 @@ void* thread_func(void* arg)
 
     while(CHECK){
 
+    	if (CHECK == 2){
+    		RefreshGameField();//TODO: Paint game field with moved down lines, and return to normal state 
+    		// 			+ paint new tetramino, generated in previous iteration
+    	}
+
     	if (CheckTetramino() == 1){	// there is free space under tetramino
     		prev_tetramino = tetramino;
     		StepDownTetramino();
@@ -279,12 +323,15 @@ void* thread_func(void* arg)
 
     	else {						// no free space under tetramino(collision)
     		RefreshGameField();
-    		if (CheckForLines())
-    			PrintGameField();
 
-    		// Check for filled lines here
-    		//if ((CheckForLines() == 0)||()){
-    		if (1){
+    		if (CheckForLines()){	// If there is strike lines
+    			CHECK = 2;
+    			PrintGameField();
+    			PrintStrike();
+    			GenerateTetramino();
+	    		prev_tetramino = tetramino;
+    		}
+			else {					// no strike lines, just refresh 
 	    		GenerateTetramino();
 	    		prev_tetramino = tetramino;
 	    		PaintTetramino();
