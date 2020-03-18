@@ -8,13 +8,18 @@
 #define XMAX 15
 #define YMAX 19
 #define INPUT_DELAY 20000
-#define PAINT_DELAY 200000
+#define PAINT_DELAY 400000
 
 int CHECK = 1;
 int game_field[XMAX+2][YMAX+1];
 
 void clrscr(void);
 void print_grid(int X_MAX, int Y_MAX);
+int  CheckRotated(void);
+void RotateTetramino(void);
+int  CheckTetramino(void);
+void StepDownTetramino(void);
+void PaintTetramino(void);
 
 enum direction_enum{left = 1, right = 2} direction;
 
@@ -26,7 +31,9 @@ struct Point{
 
 struct TetraminoStruct{
     struct Point blocks[4];
-} tetramino, prev_tetramino;
+    int type;
+    int state;
+} tetramino, prev_tetramino, temp_tetramino;
 
 
 
@@ -120,7 +127,10 @@ void GenerateTetramino(void)
         tetramino.blocks[2].Y = 10;
         tetramino.blocks[3].X = 3;
         tetramino.blocks[3].Y = 11;
+        tetramino.type = 1;
     }
+
+    tetramino.state = 1;
 }
 
 
@@ -153,12 +163,24 @@ void* inputThreadFunc(void* arg){
 			break;
 		}
 
-		if (ch == 'a'){
+		else if (ch == 'w'){
+			RotateTetramino();
+		}
+
+		else if (ch == 's'){
+			if (CheckTetramino()){
+				prev_tetramino = tetramino;
+				StepDownTetramino();
+				PaintTetramino();
+			}
+		}
+
+		else if (ch == 'a'){
 			direction = left;
 			MoveTetramino();
 		}
 
-		if (ch == 'd'){
+		else if (ch == 'd'){
 			direction = right;
 			MoveTetramino();
 		}
@@ -183,7 +205,9 @@ void PaintTetramino(void)
     // Paint new tetramino
     for (i=0; i<4; i++){       
         printf("\033[%d;%dH%d,%d;", 10, (YMAX+10+i*7), tetramino.blocks[i].X, tetramino.blocks[i].Y);
-        printf("\033[%d;%dHX",tetramino.blocks[i].X,tetramino.blocks[i].Y);
+        //printf("\033[%d;%dHX",tetramino.blocks[i].X,tetramino.blocks[i].Y);
+        //printf("\033[%d;%dH\u25a2",tetramino.blocks[i].X,tetramino.blocks[i].Y);
+        printf("\033[%d;%dH@",tetramino.blocks[i].X,tetramino.blocks[i].Y);
     }
 }
 
@@ -281,6 +305,70 @@ void MoveTetramino(void)
 		}
 	}
 
+}
+
+
+
+void RotateTetramino(void)
+{
+	int i;
+	temp_tetramino = tetramino;
+
+	if (tetramino.type == 1){	// L type tetramino
+		if (tetramino.state == 1){
+			temp_tetramino.blocks[0].X++;
+			temp_tetramino.blocks[0].Y--;
+			temp_tetramino.blocks[2].X--;
+			temp_tetramino.blocks[2].Y++;
+			temp_tetramino.blocks[3].X -= 2;
+			temp_tetramino.state = 2;
+		}
+		else if (tetramino.state == 2){
+			temp_tetramino.blocks[0].X++;
+			temp_tetramino.blocks[0].Y++;
+			temp_tetramino.blocks[2].X--;
+			temp_tetramino.blocks[2].Y--;
+			temp_tetramino.blocks[3].Y -= 2;
+			temp_tetramino.state = 3;
+		}
+		else if (tetramino.state == 3){
+			temp_tetramino.blocks[0].X--;
+			temp_tetramino.blocks[0].Y++;
+			temp_tetramino.blocks[2].X++;
+			temp_tetramino.blocks[2].Y--;
+			temp_tetramino.blocks[3].X += 2;
+			temp_tetramino.state = 4;
+		}
+		else if (tetramino.state == 4){
+			temp_tetramino.blocks[0].X--; 
+			temp_tetramino.blocks[0].Y--;
+			temp_tetramino.blocks[2].X++;
+			temp_tetramino.blocks[2].Y++;
+			temp_tetramino.blocks[3].Y += 2;
+			temp_tetramino.state = 1;
+		}
+	}
+
+	if (CheckRotated()){
+		prev_tetramino = tetramino;
+		tetramino = temp_tetramino;
+		PaintTetramino();
+	}
+}
+
+
+
+// Check rotated tetramino for collision with existing blocks and walls
+int CheckRotated(void)
+{
+	int i;
+	int return_value = 1;
+
+	for (i=0; i<4; i++)
+		if (game_field[temp_tetramino.blocks[i].X][temp_tetramino.blocks[i].Y-1] == 1)
+			return_value = 0;
+
+	return return_value;
 }
 
 
