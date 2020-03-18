@@ -8,10 +8,11 @@
 #define XMAX 15
 #define YMAX 19
 #define INPUT_DELAY 20000
-#define PAINT_DELAY 400000
+#define PAINT_DELAY 200000
 
 int CHECK = 1;
 int game_field[XMAX+2][YMAX+1];
+int mutex = 1;
 
 void clrscr(void);
 void print_grid(int X_MAX, int Y_MAX);
@@ -71,7 +72,7 @@ void InitGameField()
     for (j=0;j<=YMAX;j++)
         game_field[i][j] = 1;       // but not last line
     
-    PrintGameField();
+    //PrintGameField();
 }
 
 
@@ -81,7 +82,6 @@ void RefreshGameField(void)
 	int i,j,k;
 
 	if (CHECK == 2){	// if there is strike lines, delete it and move each other line down 1 step
-
 		for (i=1; i<=XMAX; i++){
 			if (game_field[i][1] == 5){		// find line with strike
 				for (k = i; k>1; k--)
@@ -96,7 +96,7 @@ void RefreshGameField(void)
 				if (game_field[i][j]==0)
 					printf(" ");
 				else
-					printf("X");
+					printf("0");
 			}
 		}
 		CHECK = 1;
@@ -107,16 +107,14 @@ void RefreshGameField(void)
 			game_field[tetramino.blocks[i].X][tetramino.blocks[i].Y-1] = 1;
 	}
 
-	PrintGameField();
+	//PrintGameField();
 }
 
 
 
 void GenerateTetramino(void)
 {
-    //int number = rand()%2;
-    // TODO: random figure number in future
-    int number = 1;
+    int number = (rand()%4)+1;
     
     if (number == 1){   // L figure
         tetramino.blocks[0].X = 1;
@@ -129,6 +127,40 @@ void GenerateTetramino(void)
         tetramino.blocks[3].Y = 11;
         tetramino.type = 1;
     }
+    else if (number == 2){	// Square figure
+    	tetramino.blocks[0].X = 1;
+        tetramino.blocks[0].Y = 10;
+        tetramino.blocks[1].X = 2;
+        tetramino.blocks[1].Y = 10;
+        tetramino.blocks[2].X = 1;
+        tetramino.blocks[2].Y = 11;
+        tetramino.blocks[3].X = 2;
+        tetramino.blocks[3].Y = 11;
+        tetramino.type = 2;
+    }
+    else if (number == 3){	// Line type figure
+    	tetramino.blocks[0].X = 1;
+        tetramino.blocks[0].Y = 10;
+        tetramino.blocks[1].X = 2;
+        tetramino.blocks[1].Y = 10;
+        tetramino.blocks[2].X = 3;
+        tetramino.blocks[2].Y = 10;
+        tetramino.blocks[3].X = 4;
+        tetramino.blocks[3].Y = 10;
+        tetramino.type = 3;
+    }
+    else if (number == 4){	// Zigzag type figure
+    	tetramino.blocks[0].X = 1;
+        tetramino.blocks[0].Y = 10;
+        tetramino.blocks[1].X = 2;
+        tetramino.blocks[1].Y = 10;
+        tetramino.blocks[2].X = 2;
+        tetramino.blocks[2].Y = 11;
+        tetramino.blocks[3].X = 3;
+        tetramino.blocks[3].Y = 11;
+        tetramino.type = 4;
+    }
+
 
     tetramino.state = 1;
 }
@@ -157,32 +189,33 @@ void* inputThreadFunc(void* arg){
 
 	while(CHECK){
 		ch = mygetch();
-
-		if (ch=='p'){
-			CHECK=0;
-			break;
-		}
-
-		else if (ch == 'w'){
-			RotateTetramino();
-		}
-
-		else if (ch == 's'){
-			if (CheckTetramino()){
-				prev_tetramino = tetramino;
-				StepDownTetramino();
-				PaintTetramino();
+		if (mutex){
+			if (ch=='p'){
+				CHECK=0;
+				break;
 			}
-		}
 
-		else if (ch == 'a'){
-			direction = left;
-			MoveTetramino();
-		}
+			else if (ch == 'w'){
+				RotateTetramino();
+			}
 
-		else if (ch == 'd'){
-			direction = right;
-			MoveTetramino();
+			else if (ch == 's'){
+				if (CheckTetramino()){
+					prev_tetramino = tetramino;
+					StepDownTetramino();
+					PaintTetramino();
+				}
+			}
+
+			else if (ch == 'a'){
+				direction = left;
+				MoveTetramino();
+			}
+
+			else if (ch == 'd'){
+				direction = right;
+				MoveTetramino();
+			}
 		}
 
 		usleep(INPUT_DELAY);	
@@ -204,10 +237,10 @@ void PaintTetramino(void)
     printf("\033[%d;%dH                                               ", 10, (YMAX+10));
     // Paint new tetramino
     for (i=0; i<4; i++){       
-        printf("\033[%d;%dH%d,%d;", 10, (YMAX+10+i*7), tetramino.blocks[i].X, tetramino.blocks[i].Y);
+        //printf("\033[%d;%dH%d,%d;", 10, (YMAX+10+i*7), tetramino.blocks[i].X, tetramino.blocks[i].Y);
         //printf("\033[%d;%dHX",tetramino.blocks[i].X,tetramino.blocks[i].Y);
         //printf("\033[%d;%dH\u25a2",tetramino.blocks[i].X,tetramino.blocks[i].Y);
-        printf("\033[%d;%dH@",tetramino.blocks[i].X,tetramino.blocks[i].Y);
+        printf("\033[%d;%dH0",tetramino.blocks[i].X,tetramino.blocks[i].Y);
     }
 }
 
@@ -314,7 +347,7 @@ void RotateTetramino(void)
 	int i;
 	temp_tetramino = tetramino;
 
-	if (tetramino.type == 1){	// L type tetramino
+	if (tetramino.type == 1){		// L type tetramino
 		if (tetramino.state == 1){
 			temp_tetramino.blocks[0].X++;
 			temp_tetramino.blocks[0].Y--;
@@ -349,7 +382,47 @@ void RotateTetramino(void)
 		}
 	}
 
-	if (CheckRotated()){
+	else if (tetramino.type == 3){		// Line type tetramino
+		if (tetramino.state == 1){
+			temp_tetramino.blocks[0].X++;
+			temp_tetramino.blocks[0].Y--;
+			temp_tetramino.blocks[2].X--;
+			temp_tetramino.blocks[2].Y++;
+			temp_tetramino.blocks[3].X -= 2;
+			temp_tetramino.blocks[3].Y += 2;
+			temp_tetramino.state = 2;
+		}
+		else if (tetramino.state == 2){
+			temp_tetramino.blocks[0].X--;
+			temp_tetramino.blocks[0].Y++;
+			temp_tetramino.blocks[2].X++;
+			temp_tetramino.blocks[2].Y--;
+			temp_tetramino.blocks[3].X += 2; 
+			temp_tetramino.blocks[3].Y -= 2;
+			temp_tetramino.state = 1;
+		}
+	}
+
+	else if (tetramino.type == 4){		// Zigzag type tetramino
+		if (tetramino.state == 1){
+			temp_tetramino.blocks[0].X++;
+			temp_tetramino.blocks[0].Y--;
+			temp_tetramino.blocks[2].X--;
+			temp_tetramino.blocks[2].Y--;
+			temp_tetramino.blocks[3].X -= 2;
+			temp_tetramino.state = 2;
+		}
+		if (tetramino.state == 2){
+			temp_tetramino.blocks[0].X--;
+			temp_tetramino.blocks[0].Y++;
+			temp_tetramino.blocks[2].X++;
+			temp_tetramino.blocks[2].Y++;
+			temp_tetramino.blocks[3].X += 2;
+			temp_tetramino.state = 1;
+		}
+	}
+
+	if (CheckRotated()){			// If rotated tetramino dont encounter with existing blocks
 		prev_tetramino = tetramino;
 		tetramino = temp_tetramino;
 		PaintTetramino();
@@ -397,7 +470,7 @@ void* thread_func(void* arg)
     int i_counter, j_counter;
 
     while(CHECK){
-
+    	mutex = 0;
     	if (CHECK == 2){
     		RefreshGameField();//TODO: Paint game field with moved down lines, and return to normal state 
     		// 			+ paint new tetramino, generated in previous iteration
@@ -414,7 +487,7 @@ void* thread_func(void* arg)
 
     		if (CheckForLines()){	// If there is strike lines
     			CHECK = 2;
-    			PrintGameField();
+    			//PrintGameField();
     			PrintStrike();
     			GenerateTetramino();
 	    		prev_tetramino = tetramino;
@@ -428,6 +501,7 @@ void* thread_func(void* arg)
 
 
     	fflush(stdout);             // force clear console buffer
+    	mutex = 1;
     	usleep(PAINT_DELAY);		// Sleep() until the next step
     }
     
@@ -456,8 +530,6 @@ int main()
 	clrscr();
 	print_grid(XMAX,YMAX);
     InitGameField();
-
-    printf("\033[%d;%dH blocks:",10,YMAX+2);
     
     GenerateTetramino();
     prev_tetramino = tetramino;
