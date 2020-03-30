@@ -8,7 +8,7 @@
 #define XMAX 15
 #define YMAX 19
 #define INPUT_DELAY 20000
-#define PAINT_DELAY 200000
+#define PAINT_DELAY 1000000
 
 int CHECK = 1;
 int game_field[XMAX+2][YMAX+1];
@@ -34,7 +34,7 @@ struct TetraminoStruct{
     struct Point blocks[4];
     int type;
     int state;
-} tetramino, prev_tetramino, temp_tetramino;
+} tetramino, prev_tetramino, temp_tetramino, shadow_tetramino;
 
 
 
@@ -234,14 +234,43 @@ void PaintTetramino(void)
         printf("\033[%d;%dH ",prev_tetramino.blocks[i].X,prev_tetramino.blocks[i].Y);
     }
 
-    printf("\033[%d;%dH                                               ", 10, (YMAX+10));
     // Paint new tetramino
     for (i=0; i<4; i++){       
-        //printf("\033[%d;%dH%d,%d;", 10, (YMAX+10+i*7), tetramino.blocks[i].X, tetramino.blocks[i].Y);
-        //printf("\033[%d;%dHX",tetramino.blocks[i].X,tetramino.blocks[i].Y);
-        //printf("\033[%d;%dH\u25a2",tetramino.blocks[i].X,tetramino.blocks[i].Y);
         printf("\033[%d;%dH0",tetramino.blocks[i].X,tetramino.blocks[i].Y);
     }
+}
+
+
+void PaintShadow(void)
+{
+	int ok = 1;
+	int i;
+
+    // Clear previous shadow
+    for (i=0; i<4; i++){
+    	if (game_field[shadow_tetramino.blocks[i].X][shadow_tetramino.blocks[i].Y-1] == 0)
+        	printf("\033[%d;%dH ",shadow_tetramino.blocks[i].X, shadow_tetramino.blocks[i].Y);
+    }
+
+    // Update shadow
+	shadow_tetramino = tetramino;
+
+	while (ok == 1){
+		for (i=0;i<4;i++){
+			if (game_field[shadow_tetramino.blocks[i].X+1][shadow_tetramino.blocks[i].Y-1] == 1)
+				ok = 0;
+		}
+		if (ok){
+			for (i=0;i<4;i++)
+				shadow_tetramino.blocks[i].X++;
+		}
+	}
+
+	// Paint new shadow
+    for (i=0; i<4; i++){       
+        printf("\033[%d;%dH.",shadow_tetramino.blocks[i].X,shadow_tetramino.blocks[i].Y);
+    }
+
 }
 
 
@@ -320,6 +349,7 @@ void MoveTetramino(void)
 			prev_tetramino = tetramino;	
 			for (i=0;i<4;i++)
 				tetramino.blocks[i].Y--;
+			PaintShadow();
 			PaintTetramino();
 		}
 	}
@@ -334,6 +364,7 @@ void MoveTetramino(void)
 			prev_tetramino = tetramino;	
 			for (i=0;i<4;i++)
 				tetramino.blocks[i].Y++;
+			PaintShadow();
 			PaintTetramino();
 		}
 	}
@@ -425,6 +456,7 @@ void RotateTetramino(void)
 	if (CheckRotated()){			// If rotated tetramino dont encounter with existing blocks
 		prev_tetramino = tetramino;
 		tetramino = temp_tetramino;
+		PaintShadow();
 		PaintTetramino();
 	}
 }
@@ -471,14 +503,15 @@ void* thread_func(void* arg)
 
     while(CHECK){
     	mutex = 0;
-    	if (CHECK == 2){
-    		RefreshGameField();//TODO: Paint game field with moved down lines, and return to normal state 
+    	if (CHECK == 2){		// State after striked lines
+    		RefreshGameField(); //TODO: Paint game field with moved down lines, and return to normal state 
     		// 			+ paint new tetramino, generated in previous iteration
     	}
 
-    	if (CheckTetramino() == 1){	// there is free space under tetramino
+    	if (CheckTetramino() == 1){		// there is free space under tetramino
     		prev_tetramino = tetramino;
     		StepDownTetramino();
+    		PaintShadow();
     		PaintTetramino();
     	}
 
@@ -487,7 +520,6 @@ void* thread_func(void* arg)
 
     		if (CheckForLines()){	// If there is strike lines
     			CHECK = 2;
-    			//PrintGameField();
     			PrintStrike();
     			GenerateTetramino();
 	    		prev_tetramino = tetramino;
@@ -533,6 +565,7 @@ int main()
     
     GenerateTetramino();
     prev_tetramino = tetramino;
+    shadow_tetramino = tetramino;
 
 	pthread_create(tid, NULL, thread_func, NULL);
 	pthread_create(tid2, NULL, inputThreadFunc, NULL);
@@ -541,7 +574,7 @@ int main()
         if (CHECK == 0){
             pthread_cancel(*tid);
             pthread_cancel(*tid2);
-            printf("\033[%d;%dH ",XMAX+20,25);
+            printf("\033[%d;%dH ",XMAX+4,25);
             printf("END OF GAME\n");
             break;
         }
